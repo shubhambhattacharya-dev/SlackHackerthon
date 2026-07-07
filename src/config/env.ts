@@ -1,0 +1,41 @@
+import "dotenv/config"
+import {z} from 'zod'
+
+
+const envSchema=z.object({
+SLACK_BOT_TOKEN:z.string().startsWith('xoxb-'),
+SLACK_SIGNING_SECRET:z.string().min(1),
+GROQ_API_KEY:z.string().min(1),
+GOOGLE_API_KEY:z.string().min(1),
+OPENROUTER_API_KEY:z.string().min(1),
+DATABASE_URL:z.string().startsWith('postgresql://'),
+PORT:z.coerce.number().int().positive().default(3000),
+HOST:z.string().default('0.0.0.0'),
+LOG_LEVEL:z.enum(["debug","info","warn","error"]).default("info"),
+NODE_ENV:z.enum(["development","test","production"]).default("development")
+})
+
+    const parsed=envSchema.safeParse(process.env);
+    if (!parsed.success) {
+        throw new Error(`Invalid environment variables: ${JSON.stringify(parsed.error.format())}`);
+    }
+
+    export const config= {
+        slack:{
+            botToken:parsed.data.SLACK_BOT_TOKEN,
+            signingSecret:parsed.data.SLACK_SIGNING_SECRET,
+        },
+        ai:{
+            groqKey:parsed.data.GROQ_API_KEY,
+            openRouterKey:parsed.data.OPENROUTER_API_KEY,
+            googleKey:parsed.data.GOOGLE_API_KEY
+        },
+
+        db:{
+            url:parsed.data.DATABASE_URL,
+        },
+        port:parseInt(parsed.data.PORT),
+        host:parsed.data.HOST,
+        logLevel:parsed.data.LOG_LEVEL,
+        nodeEnv:parsed.data.NODE_ENV
+    }

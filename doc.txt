@@ -1,0 +1,25 @@
+# Amnesia Agent - Development Log
+
+## Day 1: Project Setup + Slack Connection
+
+### Completed
+- Created Slack app "Amnesia Agent"
+- Added 10 OAuth scopes (chat:write, channels:history, etc.)
+- Installed app to workspace
+- Obtained Bot Token (xoxb-...) and Signing Secret
+- Created .env.example with all required variables
+- Created .env with real tokens
+- Created .gitignore
+- Created tsconfig.json (production-grade)
+- Created package.json with scripts (dev, build, start, watch)
+- Installed dependencies: @slack/bolt, express, zod, pino, etc.
+- Created src/config.ts with Zod validation
+- Created src/lib/logger.ts with Pino
+
+### In Progress
+- src/server.ts (Express + Bolt entry)
+- src/slack/handler.ts (Message events)
+
+### Next (Day 2)
+- Commitment detection with AI
+- LLM fallback chain (Groq → OpenRouter → Gemini)
