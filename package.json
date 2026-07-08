@@ -2,11 +2,11 @@
   "name": "slackhackerthon",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/server.js",
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "ts-node src/server.ts",
+    "dev": "npx tsx src/server.ts",
     "start": "node dist/server.js",
     "watch": "tsc --watch"
   },
@@ -44,6 +44,7 @@
   "devDependencies": {
     "@types/node": "^26.1.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.23.0",
     "typescript": "^6.0.3"
   }
 }

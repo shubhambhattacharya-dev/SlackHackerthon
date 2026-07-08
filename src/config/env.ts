@@ -5,6 +5,7 @@ import {z} from 'zod'
 const envSchema=z.object({
 SLACK_BOT_TOKEN:z.string().startsWith('xoxb-'),
 SLACK_SIGNING_SECRET:z.string().min(1),
+SLACK_APP_TOKEN:z.string().startsWith('xapp-'),
 GROQ_API_KEY:z.string().min(1),
 GOOGLE_API_KEY:z.string().min(1),
 OPENROUTER_API_KEY:z.string().min(1),
@@ -24,6 +25,7 @@ NODE_ENV:z.enum(["development","test","production"]).default("development")
         slack:{
             botToken:parsed.data.SLACK_BOT_TOKEN,
             signingSecret:parsed.data.SLACK_SIGNING_SECRET,
+            appToken:parsed.data.SLACK_APP_TOKEN,
         },
         ai:{
             groqKey:parsed.data.GROQ_API_KEY,
@@ -34,7 +36,7 @@ NODE_ENV:z.enum(["development","test","production"]).default("development")
         db:{
             url:parsed.data.DATABASE_URL,
         },
-        port:parseInt(parsed.data.PORT),
+        port:parsed.data.PORT,
         host:parsed.data.HOST,
         logLevel:parsed.data.LOG_LEVEL,
         nodeEnv:parsed.data.NODE_ENV
