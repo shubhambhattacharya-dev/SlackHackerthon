@@ -11,6 +11,10 @@ GOOGLE_API_KEY:z.string().min(1),
 OPENROUTER_API_KEY:z.string().min(1),
 DATABASE_URL:z.string().startsWith('postgresql://'),
 PORT:z.coerce.number().int().positive().default(3000),
+GOOGLE_CALENDAR_API_KEY:z.string().min(1),
+GOOGLE_CALENDAR_ID:z.string().min(1),
+API_KEY:z.string().min(1),
+MCP_ENABLED:z.coerce.boolean().default(true),
 HOST:z.string().default('0.0.0.0'),
 LOG_LEVEL:z.enum(["debug","info","warn","error"]).default("info"),
 NODE_ENV:z.enum(["development","test","production"]).default("development")
@@ -31,6 +35,14 @@ NODE_ENV:z.enum(["development","test","production"]).default("development")
             groqKey:parsed.data.GROQ_API_KEY,
             openRouterKey:parsed.data.OPENROUTER_API_KEY,
             googleKey:parsed.data.GOOGLE_API_KEY
+        },
+        calendar:{
+            googleCalendarKey:parsed.data.GOOGLE_CALENDAR_API_KEY,
+            googleCalendarId:parsed.data.GOOGLE_CALENDAR_ID
+        },
+        mcp:{
+            apiKey:parsed.data.API_KEY,
+            mcpEnabled:parsed.data.MCP_ENABLED,
         },
 
         db:{
