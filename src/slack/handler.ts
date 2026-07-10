@@ -2,6 +2,7 @@ import { logger } from "../lib/logger.js";
 import { detectCommitment } from "../ai/tools.js";
 import { SlackEventMiddlewareArgs } from "@slack/bolt";
 import { detectionCard } from "../slack/cards/detection.js";
+import { createCommitment } from "../db/queries.js";
 import { v4 as uuid } from "uuid";
 
 
@@ -80,5 +81,14 @@ if (("bot_id" in message && message.bot_id) || message.subtype) return;
       `${confidenceEmoji} Commitment detected: ${commitment.text}`,
   });
 
-  // TODO: Save to database and schedule reminder.
+  await createCommitment({
+    id:commitmentId,
+    slackMessageTs:message.ts,
+    channelId:message.channel,
+    ownerId:message.user,
+    taskDescription:commitment.text,
+    deadline:commitment.dueTime ?? undefined,
+
+
+  })
 };

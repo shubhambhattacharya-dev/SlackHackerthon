@@ -95,22 +95,49 @@ src/
 
 ## Data Flow
 
-### 1. Commitment Detection
+### 1. Commitment Detection (3-Checker Architecture)
 
 ```
-Message event received
-        ↓
-Extract: text, user_id, channel_id, message_ts
-        ↓
-chrono-node: Extract due time
-        ↓
-LLM: Classify intent (commitment / non-commitment)
-        ↓
-If commitment detected:
-  ├── Generate commitment object
-  ├── Store as "pending"
-  └── Post verification card
+Raw message received
+        │
+        ├── 1️⃣ REGEX PATTERNS (EN + HI independent)
+        │       ├── English: strong (+3), soft (+1.5), deadline (+2), negation (→ reject)
+        │       ├── Hindi:   strong (+3), soft (+1.5), deadline (+2), negation (→ reject)
+        │       └── Both pattern sets fire on SAME text independently
+        │           → Code-switching works because EN matches EN part, HI matches HI part
+        │
+        ├── 2️⃣ CHRONO-NODE
+        │       └── Parse date from natural language
+        │
+        └── 3️⃣ GROQ AI FALLBACK (WIP — not yet wired in handler.ts)
+                └── If regex score < threshold, fallback to LLM classification
 ```
+
+**Scoring:**
+| Score | Confidence |
+|-------|-----------|
+| ≥ 5 | high |
+| 3-4 | medium |
+| 1-2 | low |
+| 0   | null (not detected) |
+
+**Code-Switching Analysis (added Jul 10):**
+
+| Input | English Score | Hindi Score | Total | Result | Notes |
+|-------|:---:|:---:|:---:|:---:|---|
+| "I'll fix login by EOD" | +3 (I'll) | 0 | 3+2=5 | ✅ High | Clean English |
+| "Main fix kar dunga by 4PM" | 0 | +3 (fix kar dunga) | 3+2=5 | ✅ High | English `by 4PM` gives deadline bonus |
+| "I'll fix kar dunga login bug kal subah" | +3 (I'll) | +3 (fix kar dunga) | 6+2=8 | ✅ High | Both patterns fire |
+| **"Main fix karunga by 4PM"** | **0** | **0** | **0** | **❌ Miss** | **karunga is contraction of kar dunga — not in patterns** |
+| **"I'll karta hoon by EOD"** | **+3 (I'll)** | **0** | **3+2=5** | **✅ Detected but wrong** | **Calls it a commitment but `karta hoon` = "I do" not "I will do"** |
+
+**Known Gaps to Fix (Priority Order):**
+1. Add contracted Hinglish verb forms: `karunga/karoonga/karungi/karongi`
+2. Wire Groq AI fallback in handler.ts (3-checker not fully connected)
+3. Lower AI threshold for mixed-language inputs (regex score 0-3 → always send to AI)
+4. Add mid-sentence hybrid patterns: `\b(I|I'll)\b.*\b(?:karna|karunga|karungi|karega)\b`
+
+**Replied on X Jul 10:** @afanazizoutbind identified code-switching edge case. Thread kept open for more test examples.
 
 ### 2. Verification
 
@@ -354,17 +381,41 @@ Invalid config → Exit process with error
 
 ---
 
-## 7-Day Build Plan
+## 4-Day Ship Plan (Revised Jul 10)
 
-| Day | Task | Files | Status |
-|-----|------|-------|--------|
-| 1 | Project setup, Slack app, env config | config/, lib/ | ✅ Done |
-| 2 | Server entry, Bolt connection, message handler, commitment detection | server.ts, slack/, ai/ | ✅ Done |
-| 3 | Verification cards, Block Kit, completion detection | slack/cards.ts | ⏳ Next |
-| 4 | Database, CRUD operations | db/ | ❌ |
-| 5 | Reminder system, timers | scheduler/ | ❌ |
-| 6 | Slash commands, testing | routes/ | ❌ |
-| 7 | Demo video, submit to Devpost | - | ❌ |
+| Day | Build | Time Needed | WOW |
+|-----|-------|:-----------:|:---:|
+| **Sat Jul 11** | 1. Scheduler (30s check loop, sends warning 30min before due) | 1.5h | 🔥🔥🔥 |
+| | 2. Complete button | 0.5h | 🔥🔥 |
+| | 3. Emergency + Reassign button (🚨 → auto-post in channel → "I'll take it" → ownership transfer) | 2h | 🔥🔥🔥 |
+| **Sun Jul 12** | 4. Wire Groq AI fallback (3-checker complete) | 1h | 🔥🔥 |
+| | 5. Fix code-switching gaps (contracted Hinglish patterns) | 30min | 🔥 |
+| | 6. Overdue public post | 1h | 🔥🔥 |
+| | 7. MCP server (GET /mcp/tools, POST /mcp/commitments) | 1h | 🔥 |
+| **Mon Jul 13** | 8. Demo video (90-sec screen recording) | 1h | 🔥🔥🔥 |
+| | 9. Devpost submission | 30min | 🔥🔥🔥 |
+| | 10. Slash `/what` command (if time) | 1h | 🔥 |
+
+**Total build time: ~8 hours. Available: ~18 hours. ✅ Plenty of room.**
+
+### What NOT to Build (Distractions)
+| Idea | Why Skip |
+|---|---|
+| WhatsApp alerts | Not Slack-native. Judges don't care. 5+ days effort. |
+| Chat bot ("ask what I need") | 4+ hours. Great for v2, bad for 4-day sprint. |
+| Full web dashboard | Overkill for Slack bot hackathon. |
+| Email notifications | No one opens them. Slack is where user is. |
+
+### The Winning Flow (Build This Story)
+```
+1. User: "I'll fix login by Friday" → detected ✅ (bilingual EN/HI)
+2. Bot saves + shows card with buttons ✅  DONE
+3. User clicks Confirm ✅  DONE
+4. Bot warns 30min before deadline in-channel ⬜  BUILD SAT
+5. User hits Emergency → "Anyone available?" → reassigned ⬜  BUILD SAT
+6. New owner Completes → bot congratulates publicly ⬜  BUILD SAT
+7. Demo video shows all 6 steps ⬜  BUILD SUN
+```
 
 ---
 
