@@ -4,6 +4,7 @@ import {logger} from "./lib/logger.js"
 import {handleMessage} from "./slack/handler.js"
 import {initializeDatabase} from './db/schema.js'
 import { registerActions } from "./slack/actions.js"
+import {startSchedule} from "./scheduler/nudge.js"
 
 const app=new App({
     token:config.slack.botToken,
@@ -14,6 +15,8 @@ const app=new App({
 
 app.message(handleMessage)
 registerActions(app)
+startSchedule(app)
+
 
 const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
 

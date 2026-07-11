@@ -23,7 +23,7 @@ export async function query<T extends pg.QueryResultRow = any>(
         try {
             return await pool.query<T>(text, params);
         } catch (err) {
-            if (attempt === MAX_RETRIES) throw err; // Last try? Give up.
+            if (attempt === MAX_RETRIES) throw err;
             logger.warn({ err, attempt }, "Query failed, retrying...");
             await new Promise(r => setTimeout(r, 1000 * attempt)); // 1s, 2s, 3s
         }

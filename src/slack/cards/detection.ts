@@ -38,13 +38,6 @@ export const detectionCard = ({
             text: { type: "plain_text", text: "🎯 New Commitment Detected", emoji: true },
         },
         {
-            type: "context",
-            elements: [
-                { type: "mrkdwn", text: "🤖 *Auto-detected from conversation*" },
-            ],
-        },
-        { type: "divider" },
-        {
             // fields render in a tidy two-column grid
             type: "section",
             fields: [
@@ -73,12 +66,6 @@ export const detectionCard = ({
                 { type: "button", text: { type: "plain_text", text: "✅ Confirm", emoji: true }, style: "primary", action_id: "commitment_confirm", value: commitmentId },
                 { type: "button", text: { type: "plain_text", text: "✏️ Edit", emoji: true }, action_id: "commitment_edit", value: commitmentId },
                 { type: "button", text: { type: "plain_text", text: "❌ Dismiss", emoji: true }, style: "danger", action_id: "commitment_dismiss", value: commitmentId },
-            ],
-        },
-        {
-            type: "context",
-            elements: [
-                { type: "mrkdwn", text: `🆔 \`${commitmentId}\`  •  ⚡ _react to update anytime_` },
             ],
         },
     );

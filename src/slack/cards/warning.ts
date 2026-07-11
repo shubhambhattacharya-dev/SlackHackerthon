@@ -31,10 +31,7 @@ export const warningCard = ({
         },
       },
       {
-        type: "divider",
-      },
-      {
-        type: "actions",
+          type: "actions",
         elements: [
           {
             type: "button",
@@ -56,15 +53,6 @@ export const warningCard = ({
             },
             action_id: "commitment_snooze",
             value: commitmentId,
-          },
-        ],
-      },
-      {
-        type: "context",
-        elements: [
-          {
-            type: "mrkdwn",
-            text: `ID: \`${commitmentId}\``,
           },
         ],
       },

@@ -12,6 +12,7 @@ export async function initializeDatabase(){
              task_description TEXT NOT NULL,
              deadline TIMESTAMPTZ,
              status TEXT NOT NULL DEFAULT 'pending',
+             reminded_at TIMESTAMP,
              created_at TIMESTAMPTZ DEFAULT NOW()
   )`
 

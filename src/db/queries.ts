@@ -28,3 +28,17 @@ export async function createCommitment(
 export async function updateStatus(id:string,status:string):Promise<void>{
     await query(`UPDATE commitments SET status = $1 WHERE id = $2`, [status, id]);
 }
+
+export async function getDueSoon():Promise<any[]>{
+    const result=await query(
+        `SELECT * FROM commitments
+        WHERE status='confirmed'
+        AND deadline BETWEEN NOW() AND NOW()+INTERVAL '30 minutes'
+        AND reminded_at IS NULL`
+    )
+    return result.rows;
+}
+
+export async function markReminded(id:string):Promise<void>{
+    await query(`UPDATE commitments SET reminded_at = NOW() WHERE id = $1`, [id]);
+}
