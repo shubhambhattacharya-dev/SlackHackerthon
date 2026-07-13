@@ -308,6 +308,22 @@ export async function handleCompletion(client: any, userId: string, commitmentId
       logger.error({ error: msgError }, 'Failed to post public celebration');
     }
 
+    // ── Delete scheduler nudge message if exists ──────────────────
+    try {
+      const nudgeResult = await query<{ channel_id: string; reminder_ts: string }>(
+        `SELECT channel_id, reminder_ts FROM commitments WHERE id = $1`,
+        [commitmentId],
+      );
+      if (nudgeResult.rows[0]?.reminder_ts) {
+        await client.chat.delete({
+          channel: nudgeResult.rows[0].channel_id,
+          ts: nudgeResult.rows[0].reminder_ts,
+        });
+      }
+    } catch (delError) {
+      logger.warn({ delError }, 'Could not delete nudge message (may not exist)');
+    }
+
     logger.info({ task, commitmentId }, 'Completion draft generated and posted');
   } catch (error) {
     logger.error({ error, commitmentId }, 'Failed to generate completion draft');

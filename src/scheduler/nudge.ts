@@ -133,6 +133,11 @@ export function startSchedule(app: any) {
                 channel: commitment.channel_id,
                 ts: result.ts,
               });
+              // Store reminder_ts in DB for cleanup on completion
+              await query(`UPDATE commitments SET reminder_ts = $1 WHERE id = $2`, [
+                result.ts,
+                commitment.id,
+              ]);
               lastUpdate.set(commitment.id, Date.now());
             }
           } catch (err) {
