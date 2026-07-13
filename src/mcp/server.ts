@@ -9,7 +9,7 @@ import {
 import { query } from '../db/pool.js';
 import { logger } from '../lib/logger.js';
 import { sendEmail } from '../lib/email.js';
-import { callGroq } from '../lib/groq.js';
+import { callLLM } from '../lib/llm.js';
 
 interface Commitment {
   id: string;
@@ -230,11 +230,11 @@ async function handleGenerateBoilerplate(args: { commitmentId: string; language?
   const task = result.rows[0].task_description;
   const lang = args.language ?? 'typescript';
 
-  const code =
-    (await callGroq({
-      system: `You generate starter ${lang} boilerplate code. Return ONLY the code block.`,
-      user: `Generate ${lang} starter code for this task: "${task}"`,
-    })) || '// Could not generate boilerplate';
+  const codeResult = await callLLM({
+    system: `You generate starter ${lang} boilerplate code. Return ONLY the code block.`,
+    user: `Generate ${lang} starter code for this task: "${task}"`,
+  }).catch(() => ({ content: '' as string, provider: '', model: '', latencyMs: 0 }));
+  const code = codeResult.content || '// Could not generate boilerplate';
 
   logger.info({ commitmentId: args.commitmentId, lang }, 'Generated boilerplate');
 
@@ -263,11 +263,12 @@ async function handleDraftCompletionEmail(args: { commitmentId: string; to: stri
 
   const task = result.rows[0].task_description;
 
-  const draft = await callGroq({
+  const draftResult = await callLLM({
     system: 'You write short, professional completion emails. Return only the email body.',
     user: `Write a brief email telling the recipient that this task is finished: "${task}"`,
     temperature: 0.5,
-  });
+  }).catch(() => ({ content: '' as string, provider: '', model: '', latencyMs: 0 }));
+  const draft = draftResult.content;
 
   const body = draft || `The task "${task}" has been completed.`;
   const subject = `Task completed: ${task}`;

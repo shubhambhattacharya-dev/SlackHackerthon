@@ -1,7 +1,7 @@
 import { logger } from '../lib/logger.js';
 import { updateStatus } from '../db/queries.js';
 import { query } from '../db/pool.js';
-import { callGroq } from '../lib/groq.js';
+import { callLLM } from '../lib/llm.js';
 import { sendEmail } from '../lib/email.js';
 import { config } from '../config/env.js';
 
@@ -128,8 +128,9 @@ export async function registerActions(app: any) {
       logger.error({ error, commitmentId }, 'Failed to update message after action');
     }
 
-    // ── Completion flow: generate AI draft + post to user DM ──────
+    // ── Completion flow: generate AI draft + post to channel ──────
     if (actionId === 'commitment_complete') {
+      logger.info({ commitmentId, userId }, 'Complete action triggered');
       await handleCompletion(client, userId, commitmentId);
     }
   });
@@ -277,12 +278,14 @@ export async function handleCompletion(client: any, userId: string, commitmentId
     const { task_description: task, channel_id } = dbResult.rows[0];
 
     // ── AI draft ──────────────────────────────────────────────────
-    const groqResponse = await callGroq({
+    const llmResult = await callLLM({
       system:
         'You are a professional assistant. Write a brief completion email. Use the sender name as Shubham Bhattacharya and recipient as Team Lead. No placeholders. Write in first person. 3-4 sentences. Return ONLY JSON: {"subject":"...","body":"..."}',
       user: `Write a completion email for: "${task}"`,
       temperature: 0.3,
+      responseFormat: 'json_object',
     });
+    const groqResponse = llmResult.content;
 
     const fallbackSubject = `Done: ${task}`;
     const fallbackBody = `Task "${task}" is complete.`;
@@ -293,16 +296,42 @@ export async function handleCompletion(client: any, userId: string, commitmentId
       commitmentId,
     ]);
 
-    // ── DM draft to user ──────────────────────────────────────────
-    await client.chat.postMessage(
-      buildDraftPayload(commitmentId, draft.subject, draft.body, userId),
+    // ── Draft email in channel ──────────────────────────────────
+    logger.info({ channel_id, commitmentId }, 'Posting draft email to channel');
+    const draftResult = await client.chat.postMessage(
+      buildDraftPayload(commitmentId, draft.subject, draft.body, channel_id),
     );
+    logger.info({ draftResult }, 'Draft email postMessage result');
 
     // ── Public celebration in channel ─────────────────────────────
     try {
+      const blocks: any[] = [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `🎉 <@${userId}> completed: *"${task}"* — great work! 🎉`,
+          },
+        },
+      ];
+
+      // If DM was sent, add a hint about where to find the draft
+      if (draftResult?.ts) {
+        blocks.push({
+          type: 'context',
+          elements: [
+            {
+              type: 'mrkdwn',
+              text: `📧 A draft email has been created for this completion. Check your *Direct Messages with Amnesia Agent* to review and send it.`,
+            },
+          ],
+        });
+      }
+
       await client.chat.postMessage({
         channel: channel_id,
         text: `🎉 <@${userId}> completed: "${task}" — great work! 🎉`,
+        blocks,
       });
     } catch (msgError) {
       logger.error({ error: msgError }, 'Failed to post public celebration');
