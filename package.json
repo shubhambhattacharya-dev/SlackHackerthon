@@ -8,7 +8,13 @@
     "build": "tsc",
     "dev": "npx tsx src/server.ts",
     "start": "node dist/server.js",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --check src/",
+    "format:fix": "prettier --write src/"
   },
   "repository": {
     "type": "git",
@@ -34,6 +40,7 @@
     "helmet": "^8.2.0",
     "morgan": "^1.11.0",
     "natural": "^8.1.1",
+    "nodemailer": "^9.0.3",
     "openai": "^6.45.0",
     "pg": "^8.22.0",
     "pino": "^10.3.1",
@@ -42,9 +49,15 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.1.0",
+    "@types/nodemailer": "^8.0.1",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.5",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.63.0",
+    "vitest": "^4.1.10"
   }
 }
