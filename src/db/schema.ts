@@ -1,6 +1,8 @@
 import { query } from './pool.js';
 import { logger } from '../lib/logger.js';
 
+const IS_DEV = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+
 export async function initializeDatabase() {
   const sql = `CREATE TABLE IF NOT EXISTS commitments(
              id TEXT PRIMARY KEY,
@@ -19,6 +21,12 @@ export async function initializeDatabase() {
   try {
     await query(sql);
     logger.info('Database initialised successfully');
+    
+    // Clear test data in development
+    if (IS_DEV) {
+      await query('DELETE FROM commitments');
+      logger.info('Cleared commitments table (development mode)');
+    }
   } catch (error) {
     logger.error({ error }, 'Failed to initialize database');
     throw error;

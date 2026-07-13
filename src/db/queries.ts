@@ -11,7 +11,7 @@ export interface CreateCommitmentParams {
 
 export async function createCommitment(params: CreateCommitmentParams): Promise<void> {
   const sql = `INSERT INTO commitments(
-    id,slack_message_ts,channel_id,owner_id,task_description,deadline) VALUES($1,$2,$3,$4,$5,$6)`;
+    id,slack_message_ts,channel_id,owner_id,task_description,deadline,status) VALUES($1,$2,$3,$4,$5,$6,'pending')`;
   await query(sql, [
     params.id,
     params.slackMessageTs,

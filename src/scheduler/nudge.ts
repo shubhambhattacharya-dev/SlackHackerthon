@@ -28,33 +28,56 @@ function formatCountdown(deadline: Date): string {
   }
 }
 
-// In-memory map: commitment_id → { channel_id, message_ts }
-const nudgeMessages = new Map<string, { channel: string; ts: string }>();
+async function loadNudgeState() {
+  const r = await query(
+    `SELECT id, reminder_ts, channel_id FROM commitments
+     WHERE status = 'confirmed'
+       AND reminder_ts IS NOT NULL`
+  );
+  const map = new Map<string, { channel: string; ts: string }>();
+  for (const row of r.rows) {
+    map.set(row.id, { channel: row.channel_id, ts: row.reminder_ts });
+  }
+  return map;
+}
 
 async function getDueCommitments() {
   const r = await query(
     `SELECT * FROM commitments
-         WHERE status IN ('pending', 'confirmed')
-         AND deadline IS NOT NULL
-         AND deadline <= NOW() + INTERVAL '30 minutes'
-         ORDER BY deadline ASC`,
+     WHERE status = 'confirmed'
+       AND deadline IS NOT NULL
+       AND deadline <= NOW() + INTERVAL '30 minutes'
+     ORDER BY deadline ASC`
   );
   return r.rows;
 }
 
 export function startSchedule(app: any) {
-  const CHECK_INTERVAL = 30000; // every 30 seconds (was 10s — caused rate limits)
-  const lastUpdate = new Map<string, number>(); // track last update time per commitment
-  const MIN_UPDATE_INTERVAL = 25000; // don't update same message more than once per 25s
+  const CHECK_INTERVAL = 30000;
+  const lastUpdate = new Map<string, number>();
+  const MIN_UPDATE_INTERVAL = 25000;
+  let nudgeMessages = new Map<string, { channel: string; ts: string }>();
+
+  // Load persisted state on startup
+  loadNudgeState().then((loaded) => {
+    nudgeMessages = loaded;
+    logger.info({ count: loaded.size }, 'Loaded nudge state from DB');
+  });
 
   setInterval(async () => {
     try {
       const dueSoon = await getDueCommitments();
       const activeIds = new Set(dueSoon.map((c: any) => c.id));
 
-      // Clean up expired nudges from memory
-      for (const [id] of nudgeMessages) {
+      // Clean up expired nudges from memory + DB
+      for (const [id, { channel, ts }] of nudgeMessages) {
         if (!activeIds.has(id)) {
+          try {
+            await app.client.chat.delete({ channel, ts });
+          } catch {
+            /* ignore */
+          }
+          await query(`UPDATE commitments SET reminder_ts = NULL WHERE id = $1`, [id]);
           nudgeMessages.delete(id);
           lastUpdate.delete(id);
         }
@@ -64,22 +87,15 @@ export function startSchedule(app: any) {
         const deadline = commitment.deadline ? new Date(commitment.deadline) : null;
         if (!deadline) continue;
 
-        // Skip if updated recently
         const lastTs = lastUpdate.get(commitment.id) || 0;
         if (Date.now() - lastTs < MIN_UPDATE_INTERVAL) continue;
 
         const isOverdue = deadline.getTime() < Date.now();
         const urgency = isOverdue ? '🚨' : '⏰';
         const countdown = formatCountdown(deadline);
-        const msgText = `${countdown}\n${urgency} <@${commitment.owner_id}>, your task *"${commitment.task_description}"* is${isOverdue ? ' OVERDUE' : ' due'}!`;
+        const msgText = `${countdown}\n${urgency} <@${commitment.owner_id}>, your task *${commitment.task_description}* is${isOverdue ? ' OVERDUE' : ' due'}!`;
 
-        // Build blocks with action buttons for overdue items
-        const blocks: any[] = [
-          {
-            type: 'section',
-            text: { type: 'mrkdwn', text: msgText },
-          },
-        ];
+        const blocks: any[] = [{ type: 'section', text: { type: 'mrkdwn', text: msgText } }];
 
         if (isOverdue) {
           blocks.push({
@@ -106,7 +122,7 @@ export function startSchedule(app: any) {
         const existing = nudgeMessages.get(commitment.id);
 
         if (existing) {
-          // UPDATE existing message with new countdown
+          // UPDATE existing message
           try {
             await app.client.chat.update({
               channel: existing.channel,
@@ -116,12 +132,13 @@ export function startSchedule(app: any) {
             });
             lastUpdate.set(commitment.id, Date.now());
           } catch {
-            // Message might have been deleted, remove from map
+            // Message deleted - remove from map + DB
             nudgeMessages.delete(commitment.id);
             lastUpdate.delete(commitment.id);
+            await query(`UPDATE commitments SET reminder_ts = NULL WHERE id = $1`, [commitment.id]);
           }
         } else {
-          // First nudge — post a new message
+          // First nudge — post new message
           try {
             const result = await app.client.chat.postMessage({
               channel: commitment.channel_id,
@@ -129,11 +146,7 @@ export function startSchedule(app: any) {
               blocks,
             });
             if (result.ts) {
-              nudgeMessages.set(commitment.id, {
-                channel: commitment.channel_id,
-                ts: result.ts,
-              });
-              // Store reminder_ts in DB for cleanup on completion
+              nudgeMessages.set(commitment.id, { channel: commitment.channel_id, ts: result.ts });
               await query(`UPDATE commitments SET reminder_ts = $1 WHERE id = $2`, [
                 result.ts,
                 commitment.id,
